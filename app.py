@@ -13,6 +13,8 @@ st.set_page_config(
 AUTOMATED_COST_PER_INVOICE = 0.20
 ERROR_RATE_AUTO = 0.001
 MIN_ROI_BOOST_FACTOR = 1.1
+TIME_SAVED_PER_INVOICE_MINUTES = 7.073
+MANUAL_ERROR_RATE_PERCENT = 0.4
 
 DB_FILE = "scenarios.db"
 
@@ -28,9 +30,7 @@ def init_db():
                 scenario_name TEXT NOT NULL,
                 monthly_invoice_volume INTEGER,
                 num_ap_staff INTEGER,
-                avg_hours_per_invoice REAL,
                 hourly_wage REAL,
-                error_rate_manual REAL,
                 error_cost REAL,
                 time_horizon_months INTEGER,
                 one_time_implementation_cost REAL
@@ -40,21 +40,22 @@ def init_db():
 
 def calculate_results(inputs):
     try:
-        labor_cost_manual = (
-            inputs['num_ap_staff'] *
-            inputs['hourly_wage'] *
-            inputs['avg_hours_per_invoice'] *
-            inputs['monthly_invoice_volume']
+        labor_savings = (
+            inputs['monthly_invoice_volume'] *
+            (TIME_SAVED_PER_INVOICE_MINUTES / 60) *
+            inputs['hourly_wage']
         )
-        auto_cost = inputs['monthly_invoice_volume'] * AUTOMATED_COST_PER_INVOICE
+        
         error_savings = (
-            (inputs['error_rate_manual'] / 100 - ERROR_RATE_AUTO) *
+            ((MANUAL_ERROR_RATE_PERCENT / 100) - ERROR_RATE_AUTO) *
             inputs['monthly_invoice_volume'] *
             inputs['error_cost']
         )
 
-        monthly_savings = (labor_cost_manual + error_savings) - auto_cost
-        monthly_savings *= MIN_ROI_BOOST_FACTOR
+        auto_cost = inputs['monthly_invoice_volume'] * AUTOMATED_COST_PER_INVOICE
+        
+        monthly_savings = (labor_savings + error_savings) - auto_cost
+        monthly_savings *= MIN_ROI_BOOST_FACTOR  # Apply bias
 
         cumulative_savings = monthly_savings * inputs['time_horizon_months']
         net_savings = cumulative_savings - inputs['one_time_implementation_cost']
@@ -117,7 +118,7 @@ with st.sidebar:
         scenario_id = st.session_state.get('selected_scenario_id')
         if scenario_id:
             data = conn.execute("SELECT * FROM scenarios WHERE id = ?", (scenario_id,)).fetchone()
-            cols = ['id', 'scenario_name', 'monthly_invoice_volume', 'num_ap_staff', 'avg_hours_per_invoice', 'hourly_wage', 'error_rate_manual', 'error_cost', 'time_horizon_months', 'one_time_implementation_cost']
+            cols = ['id', 'scenario_name', 'monthly_invoice_volume', 'num_ap_staff', 'hourly_wage', 'error_cost', 'time_horizon_months', 'one_time_implementation_cost']
             for col, val in zip(cols, data):
                 st.session_state[col] = val
 
@@ -132,9 +133,7 @@ with st.sidebar:
     scenario_name = st.text_input("Scenario Name", key='scenario_name', placeholder="e.g., Q4 Pilot")
     monthly_invoice_volume = st.number_input("Monthly Invoices", min_value=0, value=2000, key='monthly_invoice_volume')
     num_ap_staff = st.number_input("Number of AP Staff", min_value=0, value=3, key='num_ap_staff')
-    avg_hours_per_invoice = st.number_input("Manual Hours per Invoice", min_value=0.0, value=0.17, step=0.01, format="%.2f", key='avg_hours_per_invoice')
     hourly_wage = st.number_input("Average Hourly Wage ($)", min_value=0.0, value=30.0, key='hourly_wage')
-    error_rate_manual = st.number_input("Manual Error Rate (%)", min_value=0.0, value=0.5, step=0.1, key='error_rate_manual')
     error_cost = st.number_input("Cost to Fix Each Error ($)", min_value=0.0, value=100.0, key='error_cost')
     time_horizon_months = st.number_input("Projection Period (Months)", min_value=1, value=36, key='time_horizon_months')
     one_time_implementation_cost = st.number_input("One-Time Implementation Cost ($)", min_value=0.0, value=50000.0, key='one_time_implementation_cost')
@@ -142,9 +141,9 @@ with st.sidebar:
     if st.button("💾 Save Scenario", use_container_width=True):
         if scenario_name:
             conn.execute("""
-                INSERT INTO scenarios (scenario_name, monthly_invoice_volume, num_ap_staff, avg_hours_per_invoice, hourly_wage, error_rate_manual, error_cost, time_horizon_months, one_time_implementation_cost)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (scenario_name, monthly_invoice_volume, num_ap_staff, avg_hours_per_invoice, hourly_wage, error_rate_manual, error_cost, time_horizon_months, one_time_implementation_cost))
+                INSERT INTO scenarios (scenario_name, monthly_invoice_volume, num_ap_staff, hourly_wage, error_cost, time_horizon_months, one_time_implementation_cost)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (scenario_name, monthly_invoice_volume, num_ap_staff, hourly_wage, error_cost, time_horizon_months, one_time_implementation_cost))
             conn.commit()
             st.success(f"Scenario '{scenario_name}' saved!")
         else:
@@ -160,6 +159,7 @@ col2.metric("📈 Total ROI (%)", f"{results['roi_percentage']:.1f}%" if results
 col3.metric("⏳ Payback Period", f"{results['payback_months']:.1f} Months" if results['payback_months'] != float('inf') else "N/A")
 
 st.subheader("Savings Over Time")
+
 months = range(1, inputs['time_horizon_months'] + 1)
 cumulative_savings_over_time = [results['monthly_savings'] * m for m in months]
 chart_data = pd.DataFrame({
