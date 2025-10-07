@@ -17,11 +17,9 @@ DB_FILE = "scenarios.db"
 
 @st.cache_resource
 def get_db_connection():
-    """Establishes a connection to the SQLite database."""
     return sqlite3.connect(DB_FILE, check_same_thread=False)
 
 def init_db():
-    """Initializes the database table if it doesn't exist."""
     with closing(get_db_connection().cursor()) as cur:
         cur.execute('''
             CREATE TABLE IF NOT EXISTS scenarios (
@@ -40,7 +38,6 @@ def init_db():
     get_db_connection().commit()
 
 def calculate_results(inputs):
-    """Calculates ROI based on a dictionary of inputs."""
     try:
         labor_cost_manual = (
             inputs['num_ap_staff'] *
@@ -82,7 +79,6 @@ def calculate_results(inputs):
             'payback_months': float('inf'), 'roi_percentage': 0
         }
 
-# --- PDF Generation ---
 def generate_pdf(inputs, results):
     """Generates a PDF report and returns it as bytes."""
     pdf = FPDF()
@@ -187,4 +183,5 @@ else:
         data=b'',
         disabled=True,
         use_container_width=True
+
     )
