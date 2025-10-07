@@ -5,3 +5,5 @@ fpdf2
 sqlite3 
 
 sqlite
+
+pandas
