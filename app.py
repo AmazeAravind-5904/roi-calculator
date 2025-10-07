@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 from fpdf import FPDF
 from contextlib import closing
+import pandas as pd
 
 st.set_page_config(
     page_title="ROI Calculator",
@@ -85,11 +86,9 @@ def generate_pdf(inputs, results):
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(0, 10, "ROI Calculator Report", 0, 1, "C")
     pdf.ln(10)
-
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 10, f"Scenario: {inputs.get('scenario_name', 'Unsaved')}", 0, 1)
     pdf.ln(5)
-
     pdf.set_font("Helvetica", "", 12)
     pdf.cell(0, 8, f"Monthly Savings: ${results['monthly_savings']:,.2f}", 0, 1)
     payback_text = (f"{results['payback_months']:.1f} months"
@@ -103,7 +102,7 @@ def generate_pdf(inputs, results):
     return bytes(pdf.output())
 
 
-init_db() 
+init_db()
 st.title("💡 Automated Invoicing ROI Calculator")
 st.markdown("Visualize cost savings when switching from manual to automated invoicing.")
 
@@ -113,7 +112,7 @@ with st.sidebar:
     conn = get_db_connection()
     scenarios = conn.execute("SELECT id, scenario_name FROM scenarios").fetchall()
     scenario_options = {s[0]: s[1] for s in scenarios}
-    
+
     def load_scenario():
         scenario_id = st.session_state.get('selected_scenario_id')
         if scenario_id:
@@ -160,6 +159,17 @@ col1.metric("💰 Monthly Savings", f"${results['monthly_savings']:,.2f}")
 col2.metric("📈 Total ROI (%)", f"{results['roi_percentage']:.1f}%" if results['roi_percentage'] != float('inf') else "N/A")
 col3.metric("⏳ Payback Period", f"{results['payback_months']:.1f} Months" if results['payback_months'] != float('inf') else "N/A")
 
+st.subheader("Savings Over Time")
+months = range(1, inputs['time_horizon_months'] + 1)
+cumulative_savings_over_time = [results['monthly_savings'] * m for m in months]
+chart_data = pd.DataFrame({
+    'Month': months,
+    'Cumulative Savings': cumulative_savings_over_time,
+    'Implementation Cost': [inputs['one_time_implementation_cost']] * len(months)
+})
+
+st.line_chart(chart_data, x='Month', y=['Cumulative Savings', 'Implementation Cost'])
+
 st.markdown("---")
 
 st.header("📄 Download Report")
@@ -182,6 +192,4 @@ else:
         data=b'',
         disabled=True,
         use_container_width=True
-
     )
-
