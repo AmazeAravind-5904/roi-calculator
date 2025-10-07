@@ -80,7 +80,6 @@ def calculate_results(inputs):
         }
 
 def generate_pdf(inputs, results):
-    """Generates a PDF report and returns it as bytes."""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 16)
@@ -185,3 +184,4 @@ else:
         use_container_width=True
 
     )
+
