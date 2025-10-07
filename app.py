@@ -55,7 +55,7 @@ def calculate_results(inputs):
         auto_cost = inputs['monthly_invoice_volume'] * AUTOMATED_COST_PER_INVOICE
         
         monthly_savings = (labor_savings + error_savings) - auto_cost
-        monthly_savings *= MIN_ROI_BOOST_FACTOR  # Apply bias
+        monthly_savings *= MIN_ROI_BOOST_FACTOR
 
         cumulative_savings = monthly_savings * inputs['time_horizon_months']
         net_savings = cumulative_savings - inputs['one_time_implementation_cost']
@@ -193,3 +193,4 @@ else:
         disabled=True,
         use_container_width=True
     )
+
