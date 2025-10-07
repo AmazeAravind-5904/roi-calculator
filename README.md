@@ -44,7 +44,7 @@ This is a lightweight ROI calculator built with Streamlit that helps visualize t
 
 4.  **Run the Streamlit app:**
     ```bash
-    streamlit run app.py
+    python -m streamlit run app.py
     ```
     Your browser will open with the running application.
 
